@@ -18,6 +18,16 @@ function VideoAnalyser() {
 
   // Fetch the video summary from GraphQL API
   const fetchVideoSummary = async (videoId) => {
+    // Retrieve the token from storage
+  const token = localStorage.getItem("authToken");
+
+  // Check if the token exists
+  if (!token) {
+    alert("Please log in first to view the Video Summary.");
+    navigate("/")
+    return; // Exit the function if no token is present
+  }
+
     const query = `
       mutation {
         description(videoId: "${videoId}") {
@@ -33,6 +43,7 @@ function VideoAnalyser() {
         headers: {
           "Content-Type": "application/json",
           "x-hasura-admin-secret": import.meta.env.VITE_HASURA_SECRET, 
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({ query }),
       });
