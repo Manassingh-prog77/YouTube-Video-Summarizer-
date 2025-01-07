@@ -1,70 +1,117 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { nhost } from "../lib/nhost";
 
 function Navbar() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Check if user is logged in on component mount
   useEffect(() => {
-    const session = nhost.auth.getSession();
-    if (session) {
-      setIsLoggedIn(true); // User is logged in
+    // Check session logic here, if needed
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      setIsLoggedIn(true);
     }
   }, []);
 
-  // Login handler
+  // Login handler (modified to use Hasura API)
   const handleLogin = async () => {
     try {
-      const { error, session } = await nhost.auth.signIn({ email, password });
-      console.log(session)
-      if (error) {
-        setError(error.message); // Show error message
+      const response = await fetch(import.meta.env.VITE_HASURA_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-hasura-admin-secret": import.meta.env.VITE_HASURA_SECRET,
+        },
+        body: JSON.stringify({
+          query: `
+            mutation {
+              signIn(credentials: {email: "${email}", password: "${password}"}){
+                session{
+                   accessToken
+                   accessTokenExpiresIn
+                   refreshToken
+                   refreshTokenId
+                   user{
+                   avatarUrl
+                   displayName
+                   email
+                   }
+                }
+              }
+            }
+          `,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.errors) {
+        setError(data.errors[0].message); // Show error message
       } else {
-        alert('Login successful');
+        const token = data.data.signIn.session.refreshToken;
+        localStorage.setItem("authToken", token); // Store token in localStorage
+        alert("Login successful");
         setIsLoggedIn(true); // User logged in successfully
         setShowModal(false);
-        navigate('/'); // Redirect to dashboard after login
+        navigate("/"); // Redirect to dashboard after login
       }
     } catch (err) {
       console.error(err);
-      setError('Login failed');
+      setError("Login failed");
     }
   };
 
-  // Create account handler
+  // Create account handler (modified to use Hasura API)
   const handleCreateAccount = async () => {
     try {
-      const { error } = await nhost.auth.signUp({ email, password });
-      if (error) {
-        setError(error.message); // Show error message
+      const response = await fetch(import.meta.env.VITE_HASURA_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-hasura-admin-secret": import.meta.env.VITE_HASURA_SECRET,
+        },
+        body: JSON.stringify({
+          query: `
+            mutation {
+              signUp(newuser: {email: "${email}", password: "${password}"}) {
+                success
+              }
+            }
+          `,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.errors) {
+        setError(data.errors[0].message); // Show error message
       } else {
-        setSuccessMessage('Account created successfully. A verification email has been sent.');
-        await nhost.auth.sendVerificationEmail({ email, password });
+        setSuccessMessage(
+          "Account created successfully. A verification email has been sent."
+        );
         setIsCreatingAccount(false); // Switch to login modal after account creation
       }
     } catch (err) {
       console.error(err);
-      setError('Account creation failed');
+      setError("Account creation failed");
     }
   };
 
-  // Log out handler
+  // Log out handler (modified to use Hasura API)
   const handleLogout = async () => {
     try {
-      await nhost.auth.signOut(); // Terminate session
+      // Clear auth token from localStorage
+      localStorage.removeItem("authToken");
       setIsLoggedIn(false); // Update state to reflect logout
-      alert('Logged out successfully');
+      alert("Logged out successfully");
     } catch (err) {
       console.error(err);
-      alert('Error logging out');
+      alert("Error logging out");
     }
   };
 
@@ -96,9 +143,15 @@ function Navbar() {
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
           <div className="bg-[#202020] p-6 rounded-lg shadow-lg w-96">
-            <h2 className="text-2xl text-center text-white mb-4">{isCreatingAccount ? 'Create Account' : 'Login'}</h2>
+            <h2 className="text-2xl text-center text-white mb-4">
+              {isCreatingAccount ? "Create Account" : "Login"}
+            </h2>
 
-            {successMessage && <p className="text-green-500 text-center mb-4">{successMessage}</p>}
+            {successMessage && (
+              <p className="text-green-500 text-center mb-4">
+                {successMessage}
+              </p>
+            )}
             {error && <p className="text-red-500 text-center mb-4">{error}</p>}
 
             <div className="mb-4">
@@ -148,7 +201,7 @@ function Navbar() {
             <div className="mt-4 text-center">
               {isCreatingAccount ? (
                 <p className="text-white">
-                  Already have an account?{' '}
+                  Already have an account?{" "}
                   <span
                     className="text-cyan-500 cursor-pointer"
                     onClick={() => setIsCreatingAccount(false)}
@@ -158,7 +211,7 @@ function Navbar() {
                 </p>
               ) : (
                 <p className="text-white">
-                  {"Don't"} have an account?{' '}
+                  {"Don't"} have an account?{" "}
                   <span
                     className="text-cyan-500 cursor-pointer"
                     onClick={() => setIsCreatingAccount(true)}

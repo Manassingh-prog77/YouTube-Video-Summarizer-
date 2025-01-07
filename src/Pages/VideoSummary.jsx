@@ -16,25 +16,41 @@ function VideoAnalyser() {
     return match ? match[6] : null;
   };
 
-  // Fetch the video summary from the API
+  // Fetch the video summary from GraphQL API
   const fetchVideoSummary = async (videoId) => {
+    const query = `
+      mutation {
+        description(videoId: "${videoId}") {
+          output
+        }
+      }
+    `;
+    
     try {
       setLoading(true);
-      const response = await fetch(
-        `https://testingusernew.app.n8n.cloud/webhook/youtube-summary?video_id=${videoId}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        const summary = data?.choices?.[0]?.message?.content || "No summary available.";
+      const response = await fetch(import.meta.env.VITE_HASURA_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-hasura-admin-secret": import.meta.env.VITE_HASURA_SECRET, 
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      const data = await response.json();
+      if (data.errors) {
+        setErrorMessage("Unable to fetch description.");
+        setVideoSummary("");
+      } else {
+        // Assuming 'output' is the description we need
+        console.log(data)
+        const summary = data.data.description.output || "No description available.";
         setVideoSummary(summary);
         setErrorMessage("");
-      } else {
-        setErrorMessage("Unable to fetch more data. API Key has expired.");
-        setVideoSummary("");
       }
     } catch (error) {
       console.log("Error fetching video summary:", error.message);
-      setErrorMessage("Unable to show summary for this video. Try another link.");
+      setErrorMessage("Unable to show description for this video. Try another link.");
       setVideoSummary("");
     } finally {
       setLoading(false);
