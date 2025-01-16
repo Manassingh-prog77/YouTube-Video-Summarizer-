@@ -21,71 +21,58 @@ function Navbar() {
   }, []);
 
   // Login handler (modified to use Hasura API)
-  const handleLogin = async () => {
+   // Login handler
+   const handleLogin = async () => {
     try {
-      const response = await fetch(import.meta.env.VITE_HASURA_API, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-hasura-admin-secret": import.meta.env.VITE_HASURA_SECRET,
-        },
-        body: JSON.stringify({
-          query: `
-            mutation {
-              signIn(credentials: {email: "${email}", password: "${password}"}){
-                session{
-                   accessToken
-                   accessTokenExpiresIn
-                   refreshToken
-                   refreshTokenId
-                   user{
-                   avatarUrl
-                   displayName
-                   email
-                   }
-                }
-              }
-            }
-          `,
-        }),
-      });
+      const response = await fetch(
+        "https://sshmiubcsiicetoycxve.auth.ap-south-1.nhost.run/v1/signin/email-password",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            "email" : email,
+            "password": password,
+          }),
+        }
+      );
 
       const data = await response.json();
-      if (data.errors) {
-        setError(data.errors[0].message); // Show error message
-      } else {
-        const token = data.data.signIn.session.refreshToken;
-        localStorage.setItem("authToken", token); // Store token in localStorage
-        alert("Login successful");
-        setIsLoggedIn(true); // User logged in successfully
-        setShowModal(false);
-        navigate("/"); // Redirect to dashboard after login
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
       }
+
+      console.log(data.session)
+      const accessToken = data.session.accessToken;
+      localStorage.setItem("authToken", accessToken); // Store token in localStorage
+      alert("Login successful");
+      setIsLoggedIn(true);
+      setShowModal(false);
+      navigate("/"); // Redirect to home page after login
     } catch (err) {
       console.error(err);
-      setError("Login failed");
+      setError(err.message);
     }
   };
 
   // Create account handler (modified to use Hasura API)
   const handleCreateAccount = async () => {
     try {
-      const response = await fetch(import.meta.env.VITE_HASURA_API, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-hasura-admin-secret": import.meta.env.VITE_HASURA_SECRET,
-        },
-        body: JSON.stringify({
-          query: `
-            mutation {
-              signUp(newuser: {email: "${email}", password: "${password}"}) {
-                success
-              }
-            }
-          `,
-        }),
-      });
+      const response = await fetch(
+        "https://sshmiubcsiicetoycxve.auth.ap-south-1.nhost.run/v1/signup/email-password",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            "email" : email,
+            "password": password,
+          }),
+        }
+      );
 
       const data = await response.json();
       if (data.errors) {

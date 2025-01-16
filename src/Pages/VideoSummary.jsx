@@ -38,11 +38,10 @@ function VideoAnalyser() {
     
     try {
       setLoading(true);
-      const response = await fetch(import.meta.env.VITE_HASURA_API, {
+      const response = await fetch("https://sshmiubcsiicetoycxve.hasura.ap-south-1.nhost.run/v1/graphql", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-hasura-admin-secret": import.meta.env.VITE_HASURA_SECRET, 
           "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({ query }),
